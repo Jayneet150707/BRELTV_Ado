@@ -6,13 +6,13 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "5000:80"
-      - "5001:443"
+      - "8080:80"
+      - "8443:443"
     depends_on:
       - db
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=db;Database=BRELTV;User=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=db;Database=BRELTV;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
     networks:
       - breltv-network
 
@@ -24,7 +24,8 @@ services:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=YourStrong!Passw0rd
     volumes:
-      - breltv-data:/var/opt/mssql
+      - sqldata:/var/opt/mssql
+      - ./src/Database:/docker-entrypoint-initdb.d
     networks:
       - breltv-network
 
@@ -33,5 +34,5 @@ networks:
     driver: bridge
 
 volumes:
-  breltv-data:
+  sqldata:
 

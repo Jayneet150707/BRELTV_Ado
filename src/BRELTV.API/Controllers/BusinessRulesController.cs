@@ -1,65 +1,126 @@
-using BRELTV.Application.BusinessRules.Commands.ApproveBusinessRule;
-using BRELTV.Application.BusinessRules.Commands.CreateBusinessRule;
-using BRELTV.Application.BusinessRules.Commands.RejectBusinessRule;
-using BRELTV.Application.BusinessRules.Queries.GetBusinessRuleDetail;
-using BRELTV.Application.BusinessRules.Queries.GetBusinessRulesList;
-using BRELTV.Application.BusinessRules.Queries.GetPendingApprovals;
+using BRELTV.Models.DTOs;
+using BRELTV.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace BRELTV.API.Controllers
 {
-    public class BusinessRulesController : ApiControllerBase
+    [ApiController]
+    [Route("api/[controller]")]
+    public class BusinessRulesController : ControllerBase
     {
+        private readonly IBusinessRuleService _businessRuleService;
+
+        public BusinessRulesController(IBusinessRuleService businessRuleService)
+        {
+            _businessRuleService = businessRuleService;
+        }
+
+        /// <summary>
+        /// Gets all business rules
+        /// </summary>
+        /// <returns>List of business rules</returns>
         [HttpGet]
-        public async Task<ActionResult<List<BusinessRuleDto>>> GetAllRules([FromQuery] GetBusinessRulesListQuery query)
+        [ProducesResponseType(typeof(IEnumerable<BusinessRuleDto>), 200)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<ActionResult<IEnumerable<BusinessRuleDto>>> GetAllBusinessRules()
         {
-            return await Mediator.Send(query);
+            var rules = await _businessRuleService.GetAllBusinessRulesAsync();
+            return Ok(rules);
         }
 
+        /// <summary>
+        /// Gets a business rule by ID
+        /// </summary>
+        /// <param name="id">Business rule ID</param>
+        /// <returns>Business rule details</returns>
         [HttpGet("{id}")]
-        public async Task<ActionResult<BusinessRuleDetailDto>> GetRuleById(int id)
+        [ProducesResponseType(typeof(BusinessRuleDto), 200)]
+        [ProducesResponseType(typeof(ProblemDetails), 404)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<ActionResult<BusinessRuleDto>> GetBusinessRuleById(int id)
         {
-            return await Mediator.Send(new GetBusinessRuleDetailQuery { Id = id });
+            var rule = await _businessRuleService.GetBusinessRuleByIdAsync(id);
+            if (rule == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(rule);
         }
 
+        /// <summary>
+        /// Creates a new business rule
+        /// </summary>
+        /// <param name="businessRule">Business rule to create</param>
+        /// <returns>Created business rule ID</returns>
         [HttpPost]
-        public async Task<ActionResult<int>> CreateRule(CreateBusinessRuleCommand command)
+        [ProducesResponseType(typeof(int), 201)]
+        [ProducesResponseType(typeof(ProblemDetails), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<ActionResult<int>> CreateBusinessRule([FromBody] BusinessRuleDto businessRule)
         {
-            return await Mediator.Send(command);
+            var createdBy = User.Identity?.Name ?? "System";
+            var id = await _businessRuleService.CreateBusinessRuleAsync(businessRule, createdBy);
+            return CreatedAtAction(nameof(GetBusinessRuleById), new { id }, id);
         }
 
+        /// <summary>
+        /// Gets pending business rule approvals
+        /// </summary>
+        /// <returns>List of pending business rule approvals</returns>
         [HttpGet("pending-approvals")]
-        public async Task<ActionResult<List<RuleApprovalDto>>> GetPendingApprovals()
+        [ProducesResponseType(typeof(IEnumerable<BusinessRuleDto>), 200)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<ActionResult<IEnumerable<BusinessRuleDto>>> GetPendingApprovals()
         {
-            return await Mediator.Send(new GetPendingApprovalsQuery());
+            var pendingRules = await _businessRuleService.GetPendingApprovalsAsync();
+            return Ok(pendingRules);
         }
 
+        /// <summary>
+        /// Approves a business rule
+        /// </summary>
+        /// <param name="id">Business rule ID</param>
+        /// <param name="comments">Optional approval comments</param>
+        /// <returns>Success status</returns>
         [HttpPost("approve/{id}")]
-        public async Task<ActionResult> ApproveRule(int id, ApproveBusinessRuleCommand command)
+        [ProducesResponseType(200)]
+        [ProducesResponseType(typeof(ProblemDetails), 404)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<ActionResult> ApproveBusinessRule(int id, [FromBody] string? comments = null)
         {
-            if (id != command.RuleApprovalId)
+            var approvedBy = User.Identity?.Name ?? "System";
+            var success = await _businessRuleService.ApproveBusinessRuleAsync(id, approvedBy, comments);
+            if (!success)
             {
-                return BadRequest();
+                return Problem("Failed to approve business rule", statusCode: 500);
             }
 
-            await Mediator.Send(command);
-
-            return NoContent();
+            return Ok();
         }
 
+        /// <summary>
+        /// Rejects a business rule
+        /// </summary>
+        /// <param name="id">Business rule ID</param>
+        /// <param name="comments">Optional rejection comments</param>
+        /// <returns>Success status</returns>
         [HttpPost("reject/{id}")]
-        public async Task<ActionResult> RejectRule(int id, RejectBusinessRuleCommand command)
+        [ProducesResponseType(200)]
+        [ProducesResponseType(typeof(ProblemDetails), 404)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
+        public async Task<ActionResult> RejectBusinessRule(int id, [FromBody] string? comments = null)
         {
-            if (id != command.RuleApprovalId)
+            var rejectedBy = User.Identity?.Name ?? "System";
+            var success = await _businessRuleService.RejectBusinessRuleAsync(id, rejectedBy, comments);
+            if (!success)
             {
-                return BadRequest();
+                return Problem("Failed to reject business rule", statusCode: 500);
             }
 
-            await Mediator.Send(command);
-
-            return NoContent();
+            return Ok();
         }
     }
 }
