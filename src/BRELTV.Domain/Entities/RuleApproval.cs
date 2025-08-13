@@ -1,0 +1,20 @@
+using System;
+
+namespace BRELTV.Domain.Entities
+{
+    public class RuleApproval
+    {
+        public int Id { get; set; }
+        public int BusinessRuleId { get; set; }
+        public string ApprovalStatus { get; set; } // Pending, Approved, Rejected
+        public string RequestedBy { get; set; }
+        public DateTime RequestedAt { get; set; }
+        public string ApprovedBy { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+        public string Comments { get; set; }
+
+        // Navigation properties
+        public BusinessRule BusinessRule { get; set; }
+    }
+}
+
